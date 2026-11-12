@@ -1,0 +1,164 @@
+{
+  "mock|n=20": {
+    "chrf_pp": {
+      "+dict": {
+        "delta": 0.171844344897763,
+        "bootstrap_p": 0.0,
+        "ttest_t": 24.02879798057332,
+        "ttest_p_value": 1.1062984864230632e-15
+      },
+      "+rag": {
+        "delta": 0.16634586754196723,
+        "bootstrap_p": 0.0,
+        "ttest_t": 10.955353083000174,
+        "ttest_p_value": 1.187066937647289e-09
+      },
+      "+agents": {
+        "delta": 0.16634586754196723,
+        "bootstrap_p": 0.0,
+        "ttest_t": 10.955353083000174,
+        "ttest_p_value": 1.187066937647289e-09
+      },
+      "+ensemble": {
+        "delta": 0.16634586754196723,
+        "bootstrap_p": 0.0,
+        "ttest_t": 10.955353083000174,
+        "ttest_p_value": 1.187066937647289e-09
+      }
+    },
+    "keyword_coverage": {
+      "+dict": {
+        "delta": 0.03499999999999992,
+        "bootstrap_p": 0.0395,
+        "ttest_t": 1.8202107734508322,
+        "ttest_p_value": 0.08451773576010334
+      },
+      "+rag": {
+        "delta": 0.03499999999999992,
+        "bootstrap_p": 0.0395,
+        "ttest_t": 1.8202107734508322,
+        "ttest_p_value": 0.08451773576010334
+      },
+      "+agents": {
+        "delta": 0.03499999999999992,
+        "bootstrap_p": 0.0395,
+        "ttest_t": 1.8202107734508322,
+        "ttest_p_value": 0.08451773576010334
+      },
+      "+ensemble": {
+        "delta": 0.03499999999999992,
+        "bootstrap_p": 0.0395,
+        "ttest_t": 1.8202107734508322,
+        "ttest_p_value": 0.08451773576010334
+      }
+    }
+  },
+  "mock|n=50": {
+    "chrf_pp": {
+      "+dict": {
+        "delta": 0.18069433294982074,
+        "bootstrap_p": 0.0,
+        "ttest_t": 31.88411587866998,
+        "ttest_p_value": 1.98708393705705e-34
+      },
+      "+rag": {
+        "delta": 0.19241172518477645,
+        "bootstrap_p": 0.0,
+        "ttest_t": 17.18485215366958,
+        "ttest_p_value": 2.1918678758554157e-22
+      },
+      "+agents": {
+        "delta": 0.19241172518477645,
+        "bootstrap_p": 0.0,
+        "ttest_t": 17.18485215366958,
+        "ttest_p_value": 2.1918678758554157e-22
+      },
+      "+ensemble": {
+        "delta": 0.19241172518477645,
+        "bootstrap_p": 0.0,
+        "ttest_t": 17.18485215366958,
+        "ttest_p_value": 2.1918678758554157e-22
+      }
+    },
+    "keyword_coverage": {
+      "+dict": {
+        "delta": 0.06400000000000006,
+        "bootstrap_p": 0.0,
+        "ttest_t": 4.330170168951531,
+        "ttest_p_value": 7.345622404164629e-05
+      },
+      "+rag": {
+        "delta": 0.06400000000000006,
+        "bootstrap_p": 0.0,
+        "ttest_t": 4.330170168951531,
+        "ttest_p_value": 7.345622404164629e-05
+      },
+      "+agents": {
+        "delta": 0.06400000000000006,
+        "bootstrap_p": 0.0,
+        "ttest_t": 4.330170168951531,
+        "ttest_p_value": 7.345622404164629e-05
+      },
+      "+ensemble": {
+        "delta": 0.06400000000000006,
+        "bootstrap_p": 0.0,
+        "ttest_t": 4.330170168951531,
+        "ttest_p_value": 7.345622404164629e-05
+      }
+    }
+  },
+  "mock|n=100": {
+    "chrf_pp": {
+      "+dict": {
+        "delta": 0.18176626054267003,
+        "bootstrap_p": 0.0,
+        "ttest_t": 45.71238358297314,
+        "ttest_p_value": 2.2822497769125895e-68
+      },
+      "+rag": {
+        "delta": 0.19672961124747473,
+        "bootstrap_p": 0.0,
+        "ttest_t": 25.442820419302343,
+        "ttest_p_value": 3.213147412111961e-45
+      },
+      "+agents": {
+        "delta": 0.19672961124747473,
+        "bootstrap_p": 0.0,
+        "ttest_t": 25.442820419302343,
+        "ttest_p_value": 3.213147412111961e-45
+      },
+      "+ensemble": {
+        "delta": 0.19672961124747473,
+        "bootstrap_p": 0.0,
+        "ttest_t": 25.442820419302343,
+        "ttest_p_value": 3.213147412111961e-45
+      }
+    },
+    "keyword_coverage": {
+      "+dict": {
+        "delta": 0.07050000000000012,
+        "bootstrap_p": 0.0,
+        "ttest_t": 6.612090482894825,
+        "ttest_p_value": 1.9393564751087303e-09
+      },
+      "+rag": {
+        "delta": 0.07050000000000012,
+        "bootstrap_p": 0.0,
+        "ttest_t": 6.612090482894825,
+        "ttest_p_value": 1.9393564751087303e-09
+      },
+      "+agents": {
+        "delta": 0.07050000000000012,
+        "bootstrap_p": 0.0,
+        "ttest_t": 6.612090482894825,
+        "ttest_p_value": 1.9393564751087303e-09
+      },
+      "+ensemble": {
+        "delta": 0.07050000000000012,
+        "bootstrap_p": 0.0,
+        "ttest_t": 6.612090482894825,
+        "ttest_p_value": 1.9393564751087303e-09
+      }
+    }
+  }
+}

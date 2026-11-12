@@ -1,0 +1,3 @@
+# Запуск всего стека одной командой из корня проекта:  docker compose up -d --build
+include:
+  - infrastructure/docker-compose.yml

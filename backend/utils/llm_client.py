@@ -24,6 +24,7 @@ class OllamaClient:
         self._transport = transport
         self._available: bool | None = None
         self._checked_at = 0.0
+        self._models: list[str] = []
 
     def _client(self, timeout: float | None = None) -> httpx.AsyncClient:
         return httpx.AsyncClient(base_url=self.base_url, timeout=timeout or self.timeout, transport=self._transport)
@@ -35,17 +36,18 @@ class OllamaClient:
         try:
             async with self._client(timeout=3.0) as c:
                 r = await c.get("/api/tags")
-                self._available = r.status_code == 200
+                r.raise_for_status()
+                self._models = [m["name"] for m in r.json().get("models", [])]
+                self._available = True
         except httpx.HTTPError:
+            self._models = []
             self._available = False
         self._checked_at = time.monotonic()
         return self._available
 
     async def list_models(self) -> list[str]:
-        async with self._client(timeout=5.0) as c:
-            r = await c.get("/api/tags")
-            r.raise_for_status()
-            return [m["name"] for m in r.json().get("models", [])]
+        await self.is_available()
+        return list(self._models)
 
     async def generate(self, prompt: str, *, model: str | None = None, system: str | None = None,
                        temperature: float = 0.7, max_tokens: int = 800, **kwargs: Any) -> LLMResponse:

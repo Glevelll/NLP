@@ -56,15 +56,45 @@ class LLMManager:
     async def available_providers(self) -> dict[str, bool]:
         return {p: await self.provider_available(p) for p in self.settings.llm_fallback_order}
 
+    async def ollama_models(self) -> list[str]:
+        installed = await self.ollama.list_models()
+        preferred = [self.settings.ollama_model, *self.settings.ollama_models, *installed]
+        return list(dict.fromkeys(model for model in preferred if model in installed))
+
+    async def model_available(self, provider: str, model: str | None) -> bool:
+        if provider != "ollama":
+            return await self.provider_available(provider)
+        installed = await self.ollama_models()
+        return _ollama_tag(model) in installed if model else bool(installed)
+
+    async def default_ensemble_specs(self) -> list[str]:
+        specs = list(dict.fromkeys(self.settings.ensemble_models))
+        if not any(parse_model_spec(spec)[0] == "ollama" for spec in specs):
+            return specs
+        installed = await self.ollama_models()
+        configured = {_ollama_tag(model) for provider, model in map(parse_model_spec, specs) if provider == "ollama"}
+        if None in configured and installed:
+            configured.add(installed[0])
+        remaining = max(0, 2 - len(configured.intersection(installed)))
+        extra = [f"ollama:{model}" for model in installed if model not in configured]
+        return [*specs, *extra[:remaining]]
+
+    @staticmethod
+    def matches_model(actual: str, provider: str, model: str | None) -> bool:
+        actual_provider, _, actual_model = actual.partition(":")
+        if actual_provider != provider or not actual_model:
+            return False
+        if model is None:
+            return True
+        return _ollama_tag(actual_model) == _ollama_tag(model) if provider == "ollama" else actual_model == model
+
     async def resolve(self, provider: str | None) -> list[str]:
         """Возвращает упорядоченный список провайдеров, которые стоит попробовать."""
-        default = self.settings.llm_default_provider
-        if provider and provider != "auto":
-            chain = [provider]
+        selected = provider if provider and provider != "auto" else self.settings.llm_default_provider
+        if selected and selected != "auto":
+            chain = [selected]
             if self.settings.llm_allow_fallback:
-                chain += [p for p in self.settings.llm_fallback_order if p != provider]
-        elif default and default != "auto":
-            chain = [default] + [p for p in self.settings.llm_fallback_order if p != default]
+                chain += [p for p in self.settings.llm_fallback_order if p != selected]
         else:
             chain = list(self.settings.llm_fallback_order)
         return [p for p in chain if await self.provider_available(p)]
@@ -91,8 +121,12 @@ class LLMManager:
 
         last_exc: Exception | None = None
         for prov in chain:
-            # явная модель относится только к явно выбранному провайдеру
-            use_model = model if (model and prov == (provider or prov)) else self.default_model(prov)
+            requested = model if prov == (provider if provider and provider != "auto" else chain[0]) else None
+            if prov == "ollama" and requested is None:
+                installed = await self.ollama_models()
+                use_model = installed[0] if installed else self.default_model(prov)
+            else:
+                use_model = requested or self.default_model(prov)
             params = {"temperature": temperature, "max_tokens": max_tokens, "task": task}
             start = time.perf_counter()
             try:
@@ -124,3 +158,9 @@ class LLMManager:
                                             max_tokens=max_tokens, task=task, payload=payload)
         return await self.api.generate(prompt, prov, model=model, system=system, temperature=temperature,
                                        max_tokens=max_tokens, json_mode=json_mode)
+
+
+def _ollama_tag(model: str | None) -> str | None:
+    if model and ":" not in model.rsplit("/", 1)[-1]:
+        return f"{model}:latest"
+    return model

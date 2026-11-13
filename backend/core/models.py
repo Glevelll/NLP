@@ -152,6 +152,7 @@ class MultiGenerateRequest(BaseModel):
     mode: str = Mode.AGENTS.value
     provider: str | None = None
     model: str | None = None
+    use_cache: bool = True
 
     @field_validator("mode")
     @classmethod

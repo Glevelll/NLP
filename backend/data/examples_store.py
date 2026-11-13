@@ -26,7 +26,7 @@ def read_records(path: Path | str) -> list[dict[str, Any]]:
 
 
 def parse_csv_bytes(content: bytes) -> list[dict[str, Any]]:
-    return list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
+    return list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"), newline=""), strict=True))
 
 
 async def import_knowledge(session: AsyncSession, records: list[dict[str, Any]], source: str = "import") -> int:

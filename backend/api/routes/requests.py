@@ -29,7 +29,7 @@ async def list_requests(limit: int = 50, offset: int = 0, user: User = Depends(g
              "iterations": r.iterations, "elapsed_ms": r.elapsed_ms, "created_at": r.created_at} for r in rows]
 
 
-async def _get_request(request_id: str, user: User, db: AsyncSession) -> GenerationRequest:
+async def get_accessible_request(request_id: str, user: User, db: AsyncSession) -> GenerationRequest:
     row = (await db.execute(select(GenerationRequest).where(GenerationRequest.request_id == request_id))
            ).scalar_one_or_none()
     if row is None:
@@ -42,7 +42,7 @@ async def _get_request(request_id: str, user: User, db: AsyncSession) -> Generat
 @router.get("/{request_id}")
 async def get_request(request_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
                       ) -> dict:
-    r = await _get_request(request_id, user, db)
+    r = await get_accessible_request(request_id, user, db)
     return {"request_id": r.request_id, "product": r.input_json, "output": r.output, "mode": r.mode,
             "provider": r.provider, "model_name": r.model_name, "critic_score": r.critic_score,
             "validation_passed": r.validation_passed, "iterations": r.iterations, "elapsed_ms": r.elapsed_ms,
@@ -52,7 +52,7 @@ async def get_request(request_id: str, user: User = Depends(get_current_user), d
 @router.get("/{request_id}/reasoning_log")
 async def reasoning_log(request_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
                         c: AppContainer = Depends(get_container)) -> dict:
-    await _get_request(request_id, user, db)
+    await get_accessible_request(request_id, user, db)
     steps = await c.log_store.get(request_id)
     return {"request_id": request_id, "steps": steps}
 
@@ -60,5 +60,5 @@ async def reasoning_log(request_id: str, user: User = Depends(get_current_user),
 @router.get("/{request_id}/llm_calls")
 async def llm_calls(request_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
                     c: AppContainer = Depends(get_container)) -> dict:
-    await _get_request(request_id, user, db)
+    await get_accessible_request(request_id, user, db)
     return {"request_id": request_id, "calls": await c.log_store.llm_calls(request_id)}

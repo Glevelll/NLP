@@ -1,6 +1,8 @@
 """Генерация описаний: одиночная, мульти-вариант, пакетная, ансамбль."""
 from __future__ import annotations
 
+import csv
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from backend.api.deps import get_container, get_current_user, submit_task
@@ -43,7 +45,7 @@ async def generate_multi(req: MultiGenerateRequest, user: User = Depends(get_cur
         raise HTTPException(422, "Не более 15 вариантов за запрос")
     try:
         return await c.generation.generate_multi(req.product, req.platforms, req.styles, req.mode, req.provider,
-                                                 req.model, user.id)
+                                                 req.model, user.id, use_cache=req.use_cache)
     except Exception as exc:
         raise _http(exc) from exc
 
@@ -64,7 +66,10 @@ async def generate_batch_upload(file: UploadFile = File(...), mode: str = Form("
                                 user: User = Depends(get_current_user), c: AppContainer = Depends(get_container)
                                 ) -> dict:
     """CSV с колонками name, category, features (через ';'), price, audience, brand, style, platform."""
-    rows = parse_csv_bytes(await file.read())
+    try:
+        rows = parse_csv_bytes(await file.read())
+    except (UnicodeError, csv.Error) as exc:
+        raise HTTPException(422, "Не удалось прочитать CSV. Проверьте формат и кодировку UTF-8.") from exc
     products = []
     for i, row in enumerate(rows, 1):
         try:

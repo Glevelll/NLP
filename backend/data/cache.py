@@ -9,6 +9,7 @@ from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import CacheEntry, utcnow
@@ -64,19 +65,27 @@ class CacheService:
         if not self.enabled:
             return
         payload = json.dumps(value, ensure_ascii=False, default=str)
+        async with self.session_factory() as s:
+            query = select(CacheEntry).where(CacheEntry.input_key == key)
+            entry = (await s.execute(query)).scalar_one_or_none()
+            if entry is None:
+                s.add(CacheEntry(input_key=key, namespace=namespace, output=payload))
+                try:
+                    await s.commit()
+                except IntegrityError:
+                    await s.rollback()
+                    if (await s.execute(query)).scalar_one_or_none() is None:
+                        raise
+                    return
+            else:
+                entry.output = payload
+                entry.created_at = utcnow()
+                await s.commit()
         if self._redis is not None:
             try:
                 await self._redis.set(f"cache:{key}", payload, ex=int(self.ttl.total_seconds()))
             except Exception as exc:
                 logger.debug("Redis set: %s", exc)
-        async with self.session_factory() as s:
-            entry = (await s.execute(select(CacheEntry).where(CacheEntry.input_key == key))).scalar_one_or_none()
-            if entry is None:
-                s.add(CacheEntry(input_key=key, namespace=namespace, output=payload))
-            else:
-                entry.output = payload
-                entry.created_at = utcnow()
-            await s.commit()
 
     async def cleanup(self, older_than_hours: int | None = None) -> int:
         border = utcnow() - (timedelta(hours=older_than_hours) if older_than_hours is not None else self.ttl)

@@ -1,4 +1,7 @@
 """Интеграционные тесты API через TestClient (БД SQLite, LLM — rule-based mock, эмбеддинги — hashing)."""
+import httpx
+
+from backend.utils.llm_client import OllamaClient
 from tests.conftest import auth_headers
 
 API = "/api/v1"
@@ -74,6 +77,12 @@ def test_generate_endpoints(api, admin_headers):
                                                     "styles": ["нейтральный", "премиальный"], "mode": "dict"},
                      headers=admin_headers)
     assert len(multi.json()) == 4
+    multi_payload = {"product": product_json(), "platforms": ["ozon", "site"], "mode": "baseline",
+                     "provider": "mock", "model": "custom", "use_cache": False}
+    first_multi = api.post(f"{API}/generate/multi", json=multi_payload, headers=admin_headers).json()
+    second_multi = api.post(f"{API}/generate/multi", json=multi_payload, headers=admin_headers).json()
+    assert all(result["model"] == "custom" and not result["cached"] for result in second_multi)
+    assert {r["request_id"] for r in first_multi}.isdisjoint(r["request_id"] for r in second_multi)
     too_many = api.post(f"{API}/generate/multi", json={"product": product_json(), "platforms": ["ozon"] * 4,
                                                        "styles": ["нейтральный"] * 4}, headers=admin_headers)
     assert too_many.status_code == 422
@@ -99,7 +108,56 @@ def test_generate_endpoints(api, admin_headers):
     assert len(ens.json()["candidates"]) == 2
     fail = api.post(f"{API}/generate/ensemble", json={"product": product_json(), "models": ["ollama:x"]},
                     headers=admin_headers)
-    assert fail.status_code == 500
+    assert fail.status_code == 503
+
+
+def test_generation_cache_and_feedback_respect_request_owner(api, admin_headers):
+    owner = auth_headers(api, "owner")
+    other = auth_headers(api, "other")
+    payload = {"product": product_json(), "mode": "baseline"}
+    first = api.post(f"{API}/generate", json=payload, headers=owner).json()
+    own_repeat = api.post(f"{API}/generate", json=payload, headers=owner).json()
+    second = api.post(f"{API}/generate", json=payload, headers=other).json()
+    assert own_repeat["cached"] and own_repeat["request_id"] == first["request_id"]
+    assert not second["cached"] and second["request_id"] != first["request_id"]
+    for result, headers in [(first, owner), (second, other)]:
+        log = api.get(f"{API}/requests/{result['request_id']}/reasoning_log", headers=headers)
+        assert log.status_code == 200 and log.json()["steps"]
+
+    feedback = {"request_id": first["request_id"], "rating": 1}
+    assert api.post(f"{API}/hitl/feedback", json=feedback, headers=other).status_code == 403
+    assert api.post(f"{API}/hitl/feedback", json={**feedback, "request_id": "unknown"},
+                    headers=admin_headers).status_code == 404
+    assert api.get(f"{API}/hitl/uncertain", headers=admin_headers).json() == []
+    assert api.post(f"{API}/hitl/feedback", json=feedback, headers=owner).status_code == 201
+
+
+def test_ollama_models_for_generation_and_evaluation(api, admin_headers):
+    installed = "qwen2.5:1.5b"
+
+    def handler(request):
+        if request.url.path == "/api/tags":
+            return httpx.Response(200, json={"models": [{"name": installed}]})
+        return httpx.Response(200, json={"response": "Описание термокружки на 450 мл."})
+
+    manager = api.container.llm
+    manager.ollama = OllamaClient("http://ollama", transport=httpx.MockTransport(handler))
+    manager.settings.llm_fallback_order = ["ollama", "mock"]
+    manager.settings.ensemble_models = ["ollama:qwen2.5:7b", "mock"]
+
+    providers = api.get(f"{API}/llm/providers").json()
+    assert providers["ollama_models"] == [installed]
+    assert set(providers["ensemble_models"]) == {f"ollama:{installed}", "mock"}
+    body = {"product": product_json(), "mode": "baseline"}
+    assert api.post(f"{API}/generate", json=body, headers=admin_headers).json()["model"] == installed
+    ensemble = api.post(f"{API}/generate/ensemble", json=body, headers=admin_headers).json()
+    assert {c["model"] for c in ensemble["candidates"]} == {f"ollama:{installed}", "mock"}
+    missing = api.post(f"{API}/evaluate", json={"model": "ollama:qwen2.5:7b", "sample_size": 1},
+                       headers=admin_headers)
+    assert missing.status_code == 503
+    evaluation = api.post(f"{API}/evaluate", json={"model": f"ollama:{installed}", "sample_size": 1},
+                          headers=admin_headers)
+    assert evaluation.json()["models_actually_used"] == [f"ollama:{installed}"]
 
 
 def test_requests_and_reasoning_log(api, admin_headers):
@@ -126,11 +184,14 @@ def test_admin_crud_and_import(api, admin_headers):
                                                 "category": "Дом и кухня"}, headers=h).json()
     assert api.get(f"{API}/admin/glossary", params={"q": "тёплый уют"}, headers=h).json()[0]["id"] == g["id"]
     assert api.get(f"{API}/admin/glossary", params={"kind": "forbidden", "category": "x"}, headers=h).json() == []
-    upd = api.put(f"{API}/admin/glossary/{g['id']}", json={"term": "тёплый уют дома", "kind": "selling_phrase"},
+    upd = api.put(f"{API}/admin/glossary/{g['id']}", json={"term": "тёплый уют дома", "kind": "forbidden"},
                   headers=h)
     assert upd.json()["term"] == "тёплый уют дома"
+    assert "тёплый уют дома" in api.container.knowledge.forbidden_phrases()
+    assert "тёплый уют" not in api.container.knowledge.selling_phrases("Дом и кухня", k=100)
     assert api.put(f"{API}/admin/glossary/0", json={"term": "x"}, headers=h).status_code == 404
     assert api.delete(f"{API}/admin/glossary/{g['id']}", headers=h).status_code == 204
+    assert "тёплый уют дома" not in api.container.knowledge.forbidden_phrases()
     assert api.delete(f"{API}/admin/glossary/{g['id']}", headers=h).status_code == 404
 
     k = api.post(f"{API}/admin/knowledge", json={"source_text": "Название: Новый товар", "category": "Обувь",
@@ -148,10 +209,19 @@ def test_admin_crud_and_import(api, admin_headers):
     csv = "term,definition,kind,category\nновая выгода,описание,selling_phrase,Обувь\n"
     imp = api.post(f"{API}/admin/import/glossary", files={"file": ("g.csv", csv.encode())}, headers=h).json()
     assert imp["added"] == 1
-    js = '[{"source_text": "Название: Импорт", "target_text": "Описание импортированного товара"}]'
+    js = '{"records": [{"source_text": "Название: Импорт", "target_text": "Описание импортированного товара"}]}'
     assert api.post(f"{API}/admin/import/knowledge", files={"file": ("k.json", js.encode())},
                     headers=h).json()["added"] == 1
     assert api.post(f"{API}/admin/import/other", files={"file": ("k.json", b"[]")}, headers=h).status_code == 422
+    for filename, data in [
+        ("bad.json", b"{"),
+        ("bad.json", b"[1]"),
+        ("bad.json", b'[{"term": 123}]'),
+        ("bad.csv", b"term,kind\n\"unclosed"),
+        ("bad.csv", b"term,kind\n\xff"),
+    ]:
+        bad = api.post(f"{API}/admin/import/glossary", files={"file": (filename, data)}, headers=h)
+        assert bad.status_code == 422 and isinstance(bad.json()["detail"], str)
     assert api.post(f"{API}/admin/reindex", headers=h).json()["stats"]["examples"] == 121
     assert api.post(f"{API}/admin/reindex", params={"background": True}, headers=h).json()["status"] == "SUCCESS"
     stats = api.get(f"{API}/admin/stats", headers=h).json()

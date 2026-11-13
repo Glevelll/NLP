@@ -24,7 +24,7 @@ def _evaluator(c: AppContainer) -> tuple[Evaluator, list[dict]]:
     test_path = data_dir / "test.json"
     if not test_path.exists():
         raise HTTPException(404, "Тестовый набор не найден — выполните scripts/generate_data.py")
-    ev = Evaluator(c.generation, ensemble_models=c.settings.ensemble_models)
+    ev = Evaluator(c.generation)
     kb_path = data_dir / "knowledge_base.json"
     if kb_path.exists():
         ev.fit_style_classifier(read_records(kb_path))

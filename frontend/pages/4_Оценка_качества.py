@@ -22,12 +22,12 @@ try:
     prov = client().providers()
     available = [p for p, ok in prov["available"].items() if ok]
     st.caption("Доступные провайдеры: " + ", ".join(available))
-    default_models = ["mock"] + [f"ollama:{m}" for m in prov["ollama_models"]] if "ollama" in available else ["mock"]
+    default_models = [f"ollama:{m}" for m in prov["ollama_models"]][:1] + ["mock"]
 except APIError:
     default_models = ["mock"]
 
 with st.form("eval"):
-    models_raw = st.text_input("Модели (через запятую, формат provider:model)", ", ".join(default_models[:2]))
+    models_raw = st.text_input("Модели (через запятую, формат provider:model)", ", ".join(default_models))
     modes = st.multiselect("Режимы", list(MODES), default=["baseline", "+rag", "+agents"], format_func=str)
     sizes = st.multiselect("Размеры выборки", [20, 50, 100], default=[20])
     background = st.checkbox("В фоне (Celery)", False)
@@ -38,13 +38,17 @@ if run:
     try:
         with st.spinner("Идёт оценка… (для 100 образцов и локальных LLM это может занять долго)"):
             resp = client().evaluate_batch(models, modes, sizes, background)
-            if background and resp.get("task_id"):
+            if background and resp.get("status") == "PENDING" and resp.get("task_id"):
                 while True:
                     s = client().task(resp["task_id"])
                     if s["state"] in ("SUCCESS", "FAILURE", "UNKNOWN"):
                         break
                     time.sleep(3)
-                resp = s.get("result") or resp
+                if s["state"] != "SUCCESS":
+                    raise APIError(str(s.get("info") or "Не удалось получить результаты оценки."))
+                resp = s.get("result") or {}
+            if resp.get("error"):
+                raise APIError(resp["error"])
             results = resp.get("results") or (resp.get("result") or {}).get("results", [])
         errors = [r for r in results if "error" in r]
         for e in errors:

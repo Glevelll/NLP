@@ -76,15 +76,19 @@ class Evaluator:
             res = await self.generation.ensemble(product, self.ensemble_models, persist=False)
         else:
             res = await self.generation.generate(product, mode, provider, model, use_cache=False, persist=False)
+        actual_model = f"{res.provider or ''}:{res.model or ''}"
+        if mode != Mode.ENSEMBLE and (not res.description
+                                     or not self.generation.llm.matches_model(actual_model, provider, model)):
+            raise LLMUnavailableError(f"Модель {provider}{f':{model}' if model else ''} не вернула описание")
         return {"prediction": res.description, "critic_score": res.critic_score, "iterations": res.iterations,
-                "model": f"{res.provider}:{res.model}"}
+                "model": actual_model}
 
     async def evaluate(self, dataset: list[dict[str, Any]], model_spec: str, mode: str, sample_size: int,
                        seed: int = 42) -> dict[str, Any]:
         mode = normalize_mode(mode)
         provider, model = parse_model_spec(model_spec)
-        if mode != Mode.ENSEMBLE and not await self.generation.llm.provider_available(provider):
-            raise LLMUnavailableError(f"Провайдер {provider} недоступен — оценка {model_spec} невозможна")
+        if mode != Mode.ENSEMBLE and not await self.generation.llm.model_available(provider, model):
+            raise LLMUnavailableError(f"Модель {model_spec} недоступна")
         samples = sample_dataset(dataset, sample_size, seed)
         start = time.perf_counter()
         preds = await gather_limited([self._predict(r, provider, model, mode) for r in samples], self.concurrency)

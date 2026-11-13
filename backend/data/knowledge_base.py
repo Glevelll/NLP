@@ -64,9 +64,7 @@ class KnowledgeService:
             docs = [record_to_document({**r, "id": r.get("id", f"rec:{i}")}) for i, r in enumerate(kb_records)]
             self.retriever.build(docs)
             self.categories = {d.metadata["category"] for d in docs if d.metadata.get("category")}
-            self.glossary = defaultdict(list)
-            for g in glossary_records:
-                self.glossary[g.get("kind") or GlossaryKind.SELLING_PHRASE].append(g)
+            self._set_glossary(glossary_records)
             self.loaded = True
         logger.info("База знаний загружена: %d примеров, %d записей справочника (эмбеддинги: %s, индекс: %s)",
                     len(docs), len(glossary_records), self.embedder.name, self.retriever.vector.backend)
@@ -75,6 +73,16 @@ class KnowledgeService:
         kb = [kb_to_record(r) for r in (await session.execute(select(KnowledgeBase))).scalars()]
         gl = [glossary_to_record(r) for r in (await session.execute(select(Glossary))).scalars()]
         self.load_records(kb, gl)
+
+    def _set_glossary(self, records: list[dict[str, Any]]) -> None:
+        grouped = defaultdict(list)
+        for record in records:
+            grouped[record.get("kind") or GlossaryKind.SELLING_PHRASE].append(record)
+        self.glossary = grouped
+
+    async def reload_glossary(self, session: AsyncSession) -> None:
+        rows = (await session.execute(select(Glossary).order_by(Glossary.id))).scalars()
+        self._set_glossary([glossary_to_record(row) for row in rows])
 
     def add_example(self, rec: dict[str, Any]) -> None:
         doc = record_to_document(rec)

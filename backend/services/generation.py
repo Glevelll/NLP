@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.agents.supervisor import Supervisor
 from backend.core.config import Settings
 from backend.core.constants import DEFAULT_FORBIDDEN, Mode
+from backend.core.exceptions import LLMUnavailableError
 from backend.core.models import AgentState, GenerationResult, ProductInput, ReasoningStep
 from backend.data.cache import CacheService, make_cache_key
 from backend.data.knowledge_base import KnowledgeService
@@ -81,7 +82,7 @@ class GenerationService:
                        persist: bool = True) -> GenerationResult:
         if mode == Mode.ENSEMBLE:
             return await self.ensemble(product, None, use_agents=False, user_id=user_id, persist=persist)
-        key = make_cache_key("generate", product.model_dump(mode="json"), mode, provider, model)
+        key = make_cache_key("generate", user_id, persist, product.model_dump(mode="json"), mode, provider, model)
         if use_cache:
             cached = await self.cache.get(key)
             if cached:
@@ -90,27 +91,28 @@ class GenerationService:
         start = time.perf_counter()
         state = await self.run_state(product, mode, provider, model, persist=persist)
         result = self.to_result(state, (time.perf_counter() - start) * 1000)
-        if persist:
-            await self._persist(state, result, user_id)
-        if use_cache and state.description:
+        saved = not persist or await self._persist(state, result, user_id)
+        if use_cache and saved and state.description:
             await self.cache.set(key, result.model_dump(mode="json"))
         return result
 
     async def ensemble(self, product: ProductInput, models: list[str] | None = None, use_agents: bool = False,
                        user_id: int | None = None, persist: bool = True) -> GenerationResult:
         """Запускает несколько моделей, оценивает кандидатов Critic-ом и выбирает лучший."""
-        specs = models or self.settings.ensemble_models
+        specs = models or await self.llm.default_ensemble_specs()
         start = time.perf_counter()
         request_id = uuid.uuid4().hex
         mode = Mode.AGENTS if use_agents else Mode.RAG
 
         async def candidate(idx: int, spec: str) -> tuple[str, AgentState | None, str | None]:
             prov, mdl = parse_model_spec(spec)
-            if not await self.llm.provider_available(prov):
-                return spec, None, "провайдер недоступен"
+            if not await self.llm.model_available(prov, mdl):
+                return spec, None, "модель недоступна"
             try:
                 st = await self.run_state(product, mode, prov, mdl, request_id=f"{request_id}-{idx}",
                                           persist=False)
+                if not st.description or not st.models_used or not self.llm.matches_model(st.models_used[0], prov, mdl):
+                    return spec, None, "выбранная модель не вернула описание"
                 if not use_agents:
                     sup = Supervisor(self.llm, self.settings)
                     with trace_request(request_id):
@@ -122,8 +124,8 @@ class GenerationService:
         results = await gather_limited([candidate(i, s) for i, s in enumerate(specs)], limit=3)
         ok = [(spec, st) for spec, st, err in results if st is not None]
         if not ok:
-            raise RuntimeError("Ни одна модель ансамбля не сгенерировала описание: "
-                               + "; ".join(f"{s}: {e}" for s, _, e in results))
+            reasons = "; ".join(f"{s}: {e}" for s, _, e in results) or "нет доступных моделей"
+            raise LLMUnavailableError(f"Не удалось сгенерировать описание в режиме ансамбля: {reasons}")
         ok.sort(key=lambda x: ensemble_score(x[1]), reverse=True)
         best_spec, best = ok[0]
         best.request_id = request_id
@@ -138,6 +140,8 @@ class GenerationService:
             started_at=now or best.reasoning_log[0].started_at, finished_at=now or best.reasoning_log[0].started_at,
         ))
         result = self.to_result(best, (time.perf_counter() - start) * 1000)
+        if len(ok) == 1:
+            result.warnings = [*result.warnings, "Доступен один результат. Для сравнения нужны две модели."]
         result.candidates = [
             {"model": s, "score": ensemble_score(st), "critic_score": st.critic_score,
              "validation_passed": st.validation_passed, "description": st.description}
@@ -149,14 +153,16 @@ class GenerationService:
         return result
 
     async def generate_multi(self, product: ProductInput, platforms: list, styles: list, mode: str,
-                             provider: str | None, model: str | None, user_id: int | None = None
+                             provider: str | None, model: str | None, user_id: int | None = None,
+                             *, use_cache: bool = True
                              ) -> list[GenerationResult]:
         variants = []
         for platform in platforms or [product.platform]:
             for style in styles or [product.style]:
                 variants.append(ProductInput(**{**product.model_dump(), "platform": platform, "style": style}))
-        return await gather_limited([self.generate(v, mode, provider, model, user_id=user_id) for v in variants],
-                                    limit=3)
+        return await gather_limited(
+            [self.generate(v, mode, provider, model, use_cache, user_id) for v in variants], limit=3,
+        )
 
     async def generate_batch(self, products: list[ProductInput], mode: str, provider: str | None = None,
                              model: str | None = None, user_id: int | None = None) -> list[GenerationResult]:
@@ -164,7 +170,7 @@ class GenerationService:
                                     limit=4)
 
     # ---------------------------------------------------------------
-    async def _persist(self, state: AgentState, result: GenerationResult, user_id: int | None) -> None:
+    async def _persist(self, state: AgentState, result: GenerationResult, user_id: int | None) -> bool:
         try:
             async with self.session_factory() as session:
                 session.add(GenerationRequest(
@@ -184,3 +190,5 @@ class GenerationService:
                     )
         except Exception as exc:
             logger.warning("Не удалось сохранить запрос %s: %s", state.request_id, exc)
+            return False
+        return True

@@ -97,9 +97,11 @@ class APIClient:
         return self._request("POST", "/generate", json={"product": product, "mode": mode, "provider": provider,
                                                         "model": model, "use_cache": use_cache})
 
-    def generate_multi(self, product: dict, platforms: list[str], styles: list[str], mode: str) -> list[dict]:
+    def generate_multi(self, product: dict, platforms: list[str], styles: list[str], mode: str,
+                       provider: str | None = None, model: str | None = None, use_cache: bool = True) -> list[dict]:
         return self._request("POST", "/generate/multi", json={"product": product, "platforms": platforms,
-                                                              "styles": styles, "mode": mode})
+                                                              "styles": styles, "mode": mode, "provider": provider,
+                                                              "model": model, "use_cache": use_cache})
 
     def ensemble(self, product: dict, models: list[str] | None, use_agents: bool) -> dict:
         return self._request("POST", "/generate/ensemble", json={"product": product, "models": models,

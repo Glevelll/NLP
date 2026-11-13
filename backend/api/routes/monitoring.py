@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import get_container, get_current_user, get_db, require_admin
+from backend.data.llm_manager import parse_model_spec
 from backend.db.models import GenerationRequest, LLMCall, User
 from backend.services.container import AppContainer
 
@@ -60,8 +61,11 @@ async def stats(_: User = Depends(get_current_user), db: AsyncSession = Depends(
 @router.get("/llm/providers")
 async def providers(c: AppContainer = Depends(get_container)) -> dict:
     s = c.settings
-    return {"available": await c.llm.available_providers(), "default": s.llm_default_provider,
-            "ollama_models": s.ollama_models, "ensemble_models": s.ensemble_models}
+    available = await c.llm.available_providers()
+    ensemble = [spec for spec in await c.llm.default_ensemble_specs()
+                if await c.llm.model_available(*parse_model_spec(spec))]
+    return {"available": available, "default": s.llm_default_provider,
+            "ollama_models": await c.llm.ollama_models(), "ensemble_models": ensemble}
 
 
 @router.post("/monitoring/cache/clear")

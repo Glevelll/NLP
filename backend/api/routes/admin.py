@@ -1,6 +1,7 @@
 """Администрирование справочника и базы знаний: CRUD, импорт CSV/JSON, переиндексация."""
 from __future__ import annotations
 
+import csv
 import json
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -10,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.deps import get_container, get_db, require_admin, require_editor, submit_task
 from backend.core.models import GlossaryIn, GlossaryOut, KnowledgeIn, KnowledgeOut
 from backend.data.examples_store import (
+    GLOSSARY_FIELDS,
+    KB_FIELDS,
     count_rows,
     import_glossary,
     import_knowledge,
@@ -45,13 +48,13 @@ async def create_glossary(data: GlossaryIn, _: User = Depends(require_editor), d
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    c.knowledge.glossary[row.kind].append({"id": row.id, **data.model_dump()})
+    await c.knowledge.reload_glossary(db)
     return row
 
 
 @router.put("/glossary/{item_id}", response_model=GlossaryOut)
 async def update_glossary(item_id: int, data: GlossaryIn, _: User = Depends(require_editor),
-                          db: AsyncSession = Depends(get_db)) -> Glossary:
+                          db: AsyncSession = Depends(get_db), c: AppContainer = Depends(get_container)) -> Glossary:
     row = await db.get(Glossary, item_id)
     if row is None:
         raise HTTPException(404, "Запись не найдена")
@@ -59,16 +62,19 @@ async def update_glossary(item_id: int, data: GlossaryIn, _: User = Depends(requ
         setattr(row, k, v)
     await db.commit()
     await db.refresh(row)
+    await c.knowledge.reload_glossary(db)
     return row
 
 
 @router.delete("/glossary/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_glossary(item_id: int, _: User = Depends(require_admin), db: AsyncSession = Depends(get_db)) -> None:
+async def delete_glossary(item_id: int, _: User = Depends(require_admin), db: AsyncSession = Depends(get_db),
+                          c: AppContainer = Depends(get_container)) -> None:
     row = await db.get(Glossary, item_id)
     if row is None:
         raise HTTPException(404, "Запись не найдена")
     await db.delete(row)
     await db.commit()
+    await c.knowledge.reload_glossary(db)
 
 
 # ------------------------- база знаний -------------------------
@@ -131,10 +137,32 @@ async def import_file(kind: str, file: UploadFile = File(...), _: User = Depends
     if kind not in ("knowledge", "glossary"):
         raise HTTPException(422, "kind должен быть knowledge или glossary")
     content = await file.read()
-    if (file.filename or "").lower().endswith(".json"):
-        records = json.loads(content.decode("utf-8"))
-    else:
-        records = parse_csv_bytes(content)
+    extension = (file.filename or "").lower().rsplit(".", 1)[-1]
+    try:
+        if extension == "json":
+            records = json.loads(content.decode("utf-8-sig"))
+            if isinstance(records, dict):
+                records = records.get("records")
+        elif extension == "csv":
+            records = parse_csv_bytes(content)
+        else:
+            raise HTTPException(422, "Загрузите файл CSV или JSON.")
+    except (UnicodeError, json.JSONDecodeError, csv.Error) as exc:
+        raise HTTPException(422, f"Не удалось прочитать файл {extension.upper()}. Проверьте формат и кодировку UTF-8.") from exc
+    if not isinstance(records, list) or any(not isinstance(record, dict) for record in records):
+        raise HTTPException(422, "В файле должен быть список записей.")
+    fields = KB_FIELDS if kind == "knowledge" else GLOSSARY_FIELDS
+    required = ("source_text", "target_text") if kind == "knowledge" else ("term",)
+    columns = (KnowledgeBase if kind == "knowledge" else Glossary).__table__.columns
+    for number, record in enumerate(records, 1):
+        if None in record or any(not isinstance(record.get(field), str) or not record[field].strip()
+                                 for field in required):
+            raise HTTPException(422, f"Запись {number}: заполните поля {', '.join(required)} и проверьте число столбцов.")
+        for field in fields:
+            value = record.get(field)
+            limit = columns[field].type.length
+            if value is not None and (not isinstance(value, str) or "\x00" in value or (limit and len(value) > limit)):
+                raise HTTPException(422, f"Запись {number}: недопустимое значение поля {field}.")
     added = await (import_knowledge(db, records, source="upload") if kind == "knowledge"
                    else import_glossary(db, records))
     await c.reload_knowledge()

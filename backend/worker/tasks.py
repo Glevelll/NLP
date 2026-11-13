@@ -90,7 +90,7 @@ def evaluate_model_task(self, model: str, mode: str, sample_size: int, seed: int
                         data_path: str | None = None) -> dict:
     async def job(c: AppContainer):
         _progress(self, 0, 1, model=model, mode=mode)
-        ev = Evaluator(c.generation, ensemble_models=c.settings.ensemble_models)
+        ev = Evaluator(c.generation)
         ev.fit_style_classifier(_kb_records(c))
         result = await ev.evaluate(_dataset(data_path), model, mode, sample_size, seed)
         async with c.db.session_factory() as s:
@@ -105,7 +105,7 @@ def evaluate_model_task(self, model: str, mode: str, sample_size: int, seed: int
 def compare_models_task(self, models: list[str], mode: str, sample_size: int, seed: int = 42,
                         data_path: str | None = None) -> dict:
     async def job(c: AppContainer):
-        ev = Evaluator(c.generation, ensemble_models=c.settings.ensemble_models)
+        ev = Evaluator(c.generation)
         ev.fit_style_classifier(_kb_records(c))
         _progress(self, 0, len(models))
         comparison = await ev.compare(_dataset(data_path), models, mode, sample_size, seed)
@@ -125,7 +125,7 @@ def compare_models_task(self, models: list[str], mode: str, sample_size: int, se
 def batch_evaluate_task(self, models: list[str], modes: list[str], sample_sizes: list[int], seed: int = 42,
                         data_path: str | None = None) -> dict:
     async def job(c: AppContainer):
-        ev = Evaluator(c.generation, ensemble_models=c.settings.ensemble_models)
+        ev = Evaluator(c.generation)
         ev.fit_style_classifier(_kb_records(c))
         data = _dataset(data_path)
         total = len(models) * len(modes) * len(sample_sizes)

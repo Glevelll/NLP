@@ -8,9 +8,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_VIRTUALENVS_CREATE=false \
     HF_HOME=/app/.cache/huggingface
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN pip install "poetry==${POETRY_VERSION}"
 
 WORKDIR /app
@@ -32,5 +29,6 @@ RUN useradd --create-home appuser && mkdir -p /app/logs /app/results /app/.cache
 USER appuser
 
 EXPOSE 8000 8501
-HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD curl -fs http://localhost:8000/healthz || exit 1
-CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD ["python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/healthz', timeout=3).close()"]
+# Справочник и BM25-индекс обновляются в памяти процесса API.
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

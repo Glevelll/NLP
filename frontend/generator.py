@@ -44,16 +44,18 @@ def product_form() -> None:
         "price": price or None, "brand": brand or None, "audience": audience or None, "platform": platform,
         "style": style,
     }
+    selected_provider = None if provider == "auto" else provider
+    selected_model = model.strip() or None
     api = client()
     try:
         with st.spinner("Готовим описание…"):
             if multi:
-                results = api.generate_multi(product, list(PLATFORMS), [], mode)
+                results = api.generate_multi(product, list(PLATFORMS), [], mode,
+                                             selected_provider, selected_model, use_cache)
             elif mode == "+ensemble":
                 results = [api.ensemble(product, None, False)]
             else:
-                results = [api.generate(product, mode, None if provider == "auto" else provider,
-                                        model.strip() or None, use_cache)]
+                results = [api.generate(product, mode, selected_provider, selected_model, use_cache)]
             st.session_state["results"] = results
     except APIError as exc:
         st.error(str(exc))

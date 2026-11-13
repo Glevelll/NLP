@@ -60,7 +60,7 @@ async def test_generation_cache_and_ensemble(container, product):
     assert ens.mode == "+ensemble" and {c["model"] for c in ens.candidates} == {"mock:a", "mock:b"}
     steps = await container.log_store.get(ens.request_id)
     assert steps[-1]["agent_name"] == "EnsembleSelector" and "ollama" in steps[-1]["input_summary"]
-    with pytest.raises(RuntimeError):
+    with pytest.raises(LLMUnavailableError):
         await container.generation.ensemble(product, ["ollama:qwen2.5:7b"])
 
     multi = await container.generation.generate_multi(product, ["ozon", "site"], ["нейтральный"], "+dict", None,

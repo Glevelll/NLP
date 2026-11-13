@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import get_container, get_current_user, get_db, require_editor
+from backend.api.routes.requests import get_accessible_request
 from backend.core.exceptions import AppError
 from backend.core.models import FeedbackIn, ProductInput, ReviewDecision
-from backend.db.models import GenerationRequest, UncertainExample, User
+from backend.db.models import UncertainExample, User
 from backend.hitl.active_learning import ActiveLearningQueue
 from backend.hitl.feedback import FeedbackService
 from backend.hitl.updater import KnowledgeUpdater
@@ -58,15 +58,13 @@ async def stats(_: User = Depends(require_editor), db: AsyncSession = Depends(ge
 @router.post("/feedback", status_code=201)
 async def feedback(data: FeedbackIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
                    ) -> dict:
+    req = await get_accessible_request(data.request_id, user, db)
     fb = await FeedbackService(db).add(data.request_id, data.rating, user.id, data.comment, data.corrected_text)
     if data.rating <= 2 or data.corrected_text:
         # плохая оценка или правка пользователя — повод показать пример редактору
-        req = (await db.execute(select(GenerationRequest).where(GenerationRequest.request_id == data.request_id))
-               ).scalar_one_or_none()
-        if req is not None:
-            await ActiveLearningQueue(db).add(
-                request_id=data.request_id, input_text=ProductInput(**req.input_json).to_text(),
-                input_json=req.input_json, model_output=req.output, critic_score=req.critic_score,
-                reason=f"Отзыв пользователя: {data.rating}/5. {data.comment or ''}".strip(),
-            )
+        await ActiveLearningQueue(db).add(
+            request_id=data.request_id, input_text=ProductInput(**req.input_json).to_text(),
+            input_json=req.input_json, model_output=req.output, critic_score=req.critic_score,
+            reason=f"Отзыв пользователя: {data.rating}/5. {data.comment or ''}".strip(),
+        )
     return {"id": fb.id, "request_id": fb.request_id, "rating": fb.rating}

@@ -183,12 +183,51 @@ async def test_supervisor_loop_until_success(state, settings, tmp_path):
     sup = Supervisor(llm, settings, store)
     result = await sup.run(state)
     agents = [s.agent_name for s in result.reasoning_log]
-    assert agents == ["DescriptionGenerator", "Validator", "Critic", "Editor", "Validator", "Critic"]
+    assert agents == ["DescriptionGenerator", "Validator", "Critic", "Editor", "Validator", "Critic", "Supervisor"]
     assert result.success and not result.needs_review and result.iteration == 2
     saved = await store.get(state.request_id)
     assert [s["agent_name"] for s in saved] == agents and saved[1]["status"] == "warning"
     assert saved[0]["model_name"] == "fake:fake-1" and saved[0]["duration_ms"] is not None
     await db.dispose()
+
+
+@pytest.mark.parametrize(("scores", "expected_reason"), [
+    ([critic_json(6), critic_json(3)], "rollback_regression"),
+    ([critic_json(6), "некорректный ответ"], "rollback_error"),
+    ([critic_json(6), critic_json(8)], "rollback_regression"),
+])
+async def test_supervisor_restores_valid_description(state, settings, scores, expected_reason):
+    llm = FakeLLM({"generate": [GOOD_TEXT], "critic": scores, "edit": ["Короткое описание без характеристик."]})
+
+    result = await Supervisor(llm, settings).run(state, persist=False)
+
+    assert result.description == GOOD_TEXT and result.validation_passed
+    assert result.critic_score == 6 and not result.critic_fallback and result.needs_review
+    assert not result.editor_changed
+    assert [s.agent_name for s in result.reasoning_log][-4:] == ["Editor", "Validator", "Critic", "Supervisor"]
+    assert result.reasoning_log[-1].parameters["stopped_reason"] == expected_reason
+
+
+async def test_supervisor_uses_single_edit_for_high_score_with_suggestions(state, settings):
+    improved = GOOD_TEXT.replace("практичный выбор", "удобный выбор")
+    llm = FakeLLM({"generate": [GOOD_TEXT], "critic": [critic_json(8, ["уточнить выгоды"])], "edit": [improved]})
+
+    result = await Supervisor(llm, settings).run(state, persist=False)
+
+    assert result.description == improved and result.success
+    assert result.reasoning_log[-1].parameters["budget"] == 1
+    assert [call["task"] for call in llm.calls].count("edit") == 1
+
+
+async def test_supervisor_can_make_three_edits_for_low_score(state, settings):
+    revisions = [GOOD_TEXT.replace("практичный выбор", wording)
+                 for wording in ("удачный выбор", "удобный выбор", "разумный выбор")]
+    llm = FakeLLM({"generate": [GOOD_TEXT], "critic": [critic_json(n) for n in (3, 4, 6, 8)], "edit": revisions[:]})
+
+    result = await Supervisor(llm, settings).run(state, persist=False)
+
+    assert result.description == revisions[-1] and result.success and result.iteration == 4
+    assert result.reasoning_log[-1].parameters["budget"] == 3
 
 
 async def test_supervisor_max_iterations_and_review(state, settings):

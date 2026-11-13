@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     temperature_editor: float = 0.5
 
     # --- Агенты ---
-    max_iterations: int = 3
+    max_iterations: int = 4  # Первичная проверка и до трёх правок.
     critic_threshold: float = 7.0
     uncertain_threshold: float = 6.0
     validator_use_llm: bool = False

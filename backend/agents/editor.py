@@ -19,7 +19,7 @@ class Editor(Agent):
 
     @staticmethod
     def needs_edit(state: AgentState) -> bool:
-        return bool(state.errors or not state.critic_passed)
+        return bool(state.errors or state.critic_suggestions or not state.critic_passed)
 
     async def process(self, state: AgentState) -> AgentState:
         if not self.needs_edit(state):

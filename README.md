@@ -39,7 +39,7 @@
               справочник        │      RAG      │                  │  HITL-очередь
         (фразы, выгоды, запреты)│ BM25 + Qdrant │                  │  (низкая оценка)
                                 ▼  + RRF        ▼                  ▼
-   Supervisor:  DescriptionGenerator → [ Validator → Critic → Editor ]×max_iterations
+   Supervisor:  DescriptionGenerator → Validator → Critic → (Editor → Validator → Critic)*
                                  │            │          │
                                  └──── LLMManager: Ollama → OpenAI/Anthropic/OpenRouter/Groq → HF → mock
                                               │ каждый вызов → llm_calls + logs/llm_calls.log

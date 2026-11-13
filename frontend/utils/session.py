@@ -22,11 +22,21 @@ def require_login(min_role: str | None = None) -> dict:
     return user
 
 
+def _show_auth_error(error: APIError, placeholders: dict) -> None:
+    if not error.field_errors:
+        st.error(str(error))
+        return
+    for field, message in error.field_errors.items():
+        placeholders[field].error(message)
+
+
 def login_form() -> None:
     tab_login, tab_reg = st.tabs(["Вход", "Регистрация"])
     with tab_login, st.form("login"):
         username = st.text_input("Имя пользователя или email")
+        username_error = st.empty()
         password = st.text_input("Пароль", type="password")
+        password_error = st.empty()
         if st.form_submit_button("Войти", type="primary"):
             try:
                 token = APIClient().login(username, password)
@@ -34,17 +44,20 @@ def login_form() -> None:
                 st.session_state["user"] = APIClient(token["access_token"]).me()
                 st.rerun()
             except APIError as exc:
-                st.error(str(exc))
+                _show_auth_error(exc, {"username": username_error, "password": password_error})
     with tab_reg, st.form("register"):
         email = st.text_input("Email")
+        email_error = st.empty()
         username = st.text_input("Имя пользователя", key="reg_username")
+        username_error = st.empty()
         password = st.text_input("Пароль (от 6 символов)", type="password", key="reg_password")
+        password_error = st.empty()
         if st.form_submit_button("Зарегистрироваться"):
             try:
                 APIClient().register(email, username, password)
-                st.success("Готово! Теперь войдите. Первый зарегистрированный пользователь получает роль admin.")
+                st.success("Аккаунт создан. Войдите на вкладке «Вход».")
             except APIError as exc:
-                st.error(str(exc))
+                _show_auth_error(exc, {"email": email_error, "username": username_error, "password": password_error})
 
 
 def sidebar_user() -> None:

@@ -7,6 +7,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -49,6 +50,24 @@ def create_app(settings: Settings | None = None, container: AppContainer | None 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError):
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error_handler(_: Request, exc: RequestValidationError):
+        details = []
+        for error in exc.errors():
+            error_type = error["type"]
+            detail = {
+                "loc": error["loc"],
+                "type": error_type,
+                "msg": "Invalid value" if error_type in {"value_error", "json_invalid"} else error["msg"],
+            }
+            bound_key = {"string_too_short": "min_length", "string_too_long": "max_length"}.get(error_type)
+            if bound_key:
+                bound = (error.get("ctx") or {}).get(bound_key)
+                if isinstance(bound, int):
+                    detail["ctx"] = {bound_key: bound}
+            details.append(detail)
+        return JSONResponse(status_code=422, content={"detail": details})
 
     @app.get("/healthz", tags=["monitoring"])
     async def healthz() -> dict:

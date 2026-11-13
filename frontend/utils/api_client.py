@@ -10,7 +10,44 @@ API_URL = os.getenv("API_URL", "http://localhost:8000/api/v1")
 
 
 class APIError(Exception):
-    pass
+    def __init__(self, message: str, field_errors: dict[str, str] | None = None):
+        super().__init__(message)
+        self.field_errors = field_errors or {}
+
+
+def _auth_field_errors(path: str, details: list) -> dict[str, str]:
+    fields = {"username", "password"}
+    if path == "/auth/register":
+        fields.add("email")
+    elif path != "/auth/login":
+        return {}
+
+    messages = {}
+    for error in details:
+        if not isinstance(error, dict):
+            continue
+        location = error.get("loc")
+        if not isinstance(location, (list, tuple)) or len(location) != 2 or location[0] != "body":
+            continue
+        field = location[1]
+        if not isinstance(field, str) or field not in fields:
+            continue
+        error_type = error.get("type")
+        bounds = error.get("ctx")
+        if not isinstance(bounds, dict):
+            bounds = {}
+        if error_type == "missing":
+            message = "Заполните это поле."
+        elif field == "email":
+            message = "Введите email в формате name@example.com."
+        elif error_type == "string_too_short" and isinstance(bounds.get("min_length"), int):
+            message = f"Введите не менее {bounds['min_length']} символов."
+        elif error_type == "string_too_long" and isinstance(bounds.get("max_length"), int):
+            message = f"Введите не более {bounds['max_length']} символов."
+        else:
+            message = "Проверьте значение в этом поле."
+        messages.setdefault(field, message)
+    return messages
 
 
 class APIClient:
@@ -27,13 +64,19 @@ class APIClient:
             r = httpx.request(method, f"{self.base_url}{path}", headers=self._headers(), timeout=self.timeout,
                               **kwargs)
         except httpx.HTTPError as exc:
-            raise APIError(f"API недоступен: {exc}") from exc
+            raise APIError("Не удалось связаться с сервером. Попробуйте ещё раз.") from exc
         if r.status_code >= 400:
+            if r.status_code >= 500:
+                raise APIError("Сервер не смог обработать запрос. Попробуйте ещё раз.")
             try:
-                detail = r.json().get("detail")
+                body = r.json()
             except ValueError:
-                detail = r.text
-            raise APIError(f"{r.status_code}: {detail}")
+                body = {}
+            detail = body.get("detail") if isinstance(body, dict) else None
+            if isinstance(detail, list):
+                raise APIError("Проверьте введённые данные.", _auth_field_errors(path, detail))
+            message = detail if isinstance(detail, str) and detail.strip() else "Не удалось выполнить запрос."
+            raise APIError(message)
         return r.json() if r.content else None
 
     # auth

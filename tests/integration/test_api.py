@@ -39,6 +39,24 @@ def test_auth_flow_and_roles(api):
     assert api.get(f"{API}/admin/glossary", headers=user).status_code == 200
 
 
+def test_registration_errors_do_not_expose_input(api):
+    response = api.post(f"{API}/auth/register", json={
+        "email": "invalid-email-sample", "username": "ab", "password": "abcde",
+    })
+
+    assert response.status_code == 422
+    details = {error["loc"][-1]: error for error in response.json()["detail"]}
+    assert set(details) == {"email", "username", "password"}
+    assert details["password"]["type"] == "string_too_short"
+    assert details["password"]["ctx"]["min_length"] == 6
+    assert all("input" not in error for error in details.values())
+    assert "abcde" not in response.text and "invalid-email-sample" not in response.text
+
+    invalid_body = api.post(f"{API}/auth/register", content='{"password":"malformed-secret",')
+    assert invalid_body.status_code == 422
+    assert "malformed-secret" not in invalid_body.text
+
+
 def test_generate_endpoints(api, admin_headers):
     r = api.post(f"{API}/generate", json={"product": product_json(), "mode": "agents"}, headers=admin_headers)
     assert r.status_code == 200, r.text

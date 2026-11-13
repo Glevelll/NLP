@@ -8,7 +8,7 @@ import streamlit as st
 
 from frontend.utils.api_client import APIError
 from frontend.utils.constants import CATEGORIES, CRITERIA_LABELS, MODES, PLATFORMS, PROVIDERS, STYLES
-from frontend.utils.layout import page_heading
+from frontend.utils.layout import ASSETS, page_heading
 from frontend.utils.session import client
 
 
@@ -122,7 +122,12 @@ def result_panel(result: dict, index: int) -> None:
                     st.error(str(exc))
 
 
-page_heading("Генератор описаний", "Укажите характеристики товара и выберите площадку.")
+with st.container(key="generator-hero"):
+    intro, illustration = st.columns([1.6, 1], vertical_alignment="center")
+    with intro:
+        page_heading("Генератор описаний", "Укажите характеристики товара и выберите площадку.", "edit_note")
+    with illustration:
+        st.image(str(ASSETS / "workspace.webp"))
 form_column, result_column = st.columns([.94, 1.06], gap="large")
 with form_column, st.container(key="product-form"):
     product_form()

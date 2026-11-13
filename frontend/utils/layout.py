@@ -10,8 +10,9 @@ def apply_styles() -> None:
     st.html(ASSETS / "style.css")
 
 
-def page_heading(title: str, description: str) -> None:
+def page_heading(title: str, description: str, icon: str) -> None:
     with st.container(key="page-heading"):
+        st.markdown(f":material/{icon}:")
         st.title(title)
         st.markdown(description)
 

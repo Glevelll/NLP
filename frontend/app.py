@@ -8,8 +8,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import streamlit as st  # noqa: E402
 
+from frontend.utils.api_client import APIError  # noqa: E402
 from frontend.utils.layout import ASSETS, apply_styles, sidebar_brand  # noqa: E402
-from frontend.utils.session import login_form, sidebar_user  # noqa: E402
+from frontend.utils.session import client, login_form, sidebar_user  # noqa: E402
 
 st.set_page_config(page_title="Карточки", page_icon=":material/inventory_2:", layout="wide")
 
@@ -39,14 +40,25 @@ def workspace() -> None:
     ]
     current = st.navigation(pages, position="hidden")
     sidebar_brand()
-    for page in pages:
-        st.sidebar.page_link(page)
+    with st.sidebar.container(key="workspace-nav"):
+        st.caption("Рабочая область")
+        for page in pages[:4]:
+            st.page_link(page)
+        st.caption("Аналитика")
+        for page in pages[4:]:
+            st.page_link(page)
     sidebar_user()
     current.run()
 
 
 apply_styles()
 if st.session_state.get("user"):
+    try:
+        st.session_state["user"] = client().me()
+    except APIError as exc:
+        if exc.status_code == 401:
+            st.session_state.clear()
+            st.rerun()
     workspace()
 else:
     st.navigation([st.Page(sign_in, title="Вход", default=True)], position="hidden").run()

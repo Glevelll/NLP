@@ -10,9 +10,10 @@ API_URL = os.getenv("API_URL", "http://localhost:8000/api/v1")
 
 
 class APIError(Exception):
-    def __init__(self, message: str, field_errors: dict[str, str] | None = None):
+    def __init__(self, message: str, field_errors: dict[str, str] | None = None, status_code: int | None = None):
         super().__init__(message)
         self.field_errors = field_errors or {}
+        self.status_code = status_code
 
 
 def _auth_field_errors(path: str, details: list) -> dict[str, str]:
@@ -67,16 +68,16 @@ class APIClient:
             raise APIError("Не удалось связаться с сервером. Попробуйте ещё раз.") from exc
         if r.status_code >= 400:
             if r.status_code >= 500:
-                raise APIError("Сервер не смог обработать запрос. Попробуйте ещё раз.")
+                raise APIError("Сервер не смог обработать запрос. Попробуйте ещё раз.", status_code=r.status_code)
             try:
                 body = r.json()
             except ValueError:
                 body = {}
             detail = body.get("detail") if isinstance(body, dict) else None
             if isinstance(detail, list):
-                raise APIError("Проверьте введённые данные.", _auth_field_errors(path, detail))
+                raise APIError("Проверьте введённые данные.", _auth_field_errors(path, detail), r.status_code)
             message = detail if isinstance(detail, str) and detail.strip() else "Не удалось выполнить запрос."
-            raise APIError(message)
+            raise APIError(message, status_code=r.status_code)
         return r.json() if r.content else None
 
     # auth

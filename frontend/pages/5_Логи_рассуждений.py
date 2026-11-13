@@ -12,7 +12,7 @@ from frontend.utils.layout import page_heading  # noqa: E402
 from frontend.utils.session import client, require_login  # noqa: E402
 
 require_login()
-page_heading("Журнал генерации", "Выберите запрос, чтобы увидеть шаги проверки и вызовы модели.")
+page_heading("Журнал генерации", "Выберите запрос, чтобы увидеть шаги проверки и вызовы модели.", "receipt_long")
 
 reqs = client().requests(100)
 if not reqs:

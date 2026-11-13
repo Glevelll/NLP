@@ -14,20 +14,24 @@ from frontend.utils.layout import page_heading  # noqa: E402
 from frontend.utils.session import client, require_login  # noqa: E402
 
 require_login()
-page_heading("Пакетная обработка", "Загрузите CSV, чтобы подготовить описания для нескольких товаров сразу.")
-st.markdown("CSV с колонками `name, category, features, price, audience, brand, style, platform`; "
-            "особенности разделяются символом `;`.")
+page_heading("Пакетная обработка", "Загрузите CSV, чтобы подготовить описания для нескольких товаров сразу.", "table_rows")
 sample = pd.DataFrame([{"name": "Термокружка Thermo Go 450 мл", "category": "Дом и кухня",
                         "features": "двойные стенки;держит тепло 8 часов;герметичная крышка", "price": 1290,
                         "audience": "путешественники и офисные сотрудники", "brand": "Thermo Go",
                         "style": "нейтральный", "platform": "wildberries"}])
-st.download_button("Скачать шаблон CSV", sample.to_csv(index=False).encode("utf-8"), "template.csv", "text/csv")
+with st.container(border=True):
+    st.subheader("Файл с товарами")
+    file = st.file_uploader("Загрузите CSV", type=["csv"])
+    st.download_button("Скачать шаблон CSV", sample.to_csv(index=False).encode("utf-8"), "template.csv",
+                       "text/csv", icon=":material/download:")
+    with st.expander("Формат файла"):
+        st.code("name, category, features, price, audience, brand, style, platform", language="text")
+        st.caption("Характеристики в столбце features разделяются точкой с запятой.")
+    mode = st.selectbox("Режим", list(MODES), format_func=MODES.get)
+    background = st.checkbox("Выполнить в фоне", True)
+    run = st.button("Запустить", type="primary", disabled=file is None)
 
-file = st.file_uploader("Загрузите CSV", type=["csv"])
-mode = st.selectbox("Режим", list(MODES), format_func=MODES.get)
-background = st.checkbox("Выполнить в фоне (Celery)", True)
-
-if file and st.button("Запустить", type="primary"):
+if file and run:
     try:
         resp = client().batch_upload(file.name, file.getvalue(), mode, background)
     except APIError as exc:

@@ -11,13 +11,19 @@ from frontend.utils.layout import page_heading  # noqa: E402
 from frontend.utils.session import client, require_login  # noqa: E402
 
 require_login("editor")
-page_heading("Проверка редактором", "Исправьте, подтвердите или отклоните описание из очереди.")
+page_heading("Проверка редактором", "Исправьте, подтвердите или отклоните описание из очереди.", "fact_check")
 st.caption("Сюда попадают описания с низкой оценкой Critic, непрошедшие валидацию и с плохими отзывами. "
            "Подтверждённые (и исправленные) описания добавляются в базу знаний и сразу участвуют в RAG.")
 
-status = st.radio("Статус", ["pending", "approved", "rejected"], horizontal=True)
-items = client().uncertain(status)
-st.write(f"Найдено: {len(items)}")
+statuses = {"pending": "Ожидают проверки", "approved": "Подтверждены", "rejected": "Отклонены"}
+status = st.radio("Статус", list(statuses), format_func=statuses.get, horizontal=True)
+try:
+    items = client().uncertain(status)
+except APIError as exc:
+    st.error(str(exc))
+    st.stop()
+if not items:
+    st.info("В этой очереди пока нет описаний.")
 for item in items:
     title = f"#{item['id']} · оценка {item['critic_score']}" + (f" · {item['input_json']['name']}"
                                                                 if item.get("input_json") else "")

@@ -13,7 +13,7 @@ from frontend.utils.layout import page_heading  # noqa: E402
 from frontend.utils.session import client, require_login  # noqa: E402
 
 user = require_login("editor")
-page_heading("Справочник и база знаний", "Управляйте примерами описаний и правилами, которые использует генератор.")
+page_heading("Справочник и база знаний", "Управляйте примерами описаний и правилами, которые использует генератор.", "library_books")
 
 try:
     stats = client().admin_stats()

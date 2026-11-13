@@ -244,6 +244,51 @@ curl -X POST localhost:8080/api/v1/generate -H "Authorization: Bearer $TOKEN" -H
    задержка, токены, хэши).
 7. **Мониторинг**: статусы сервисов и LLM-провайдеров, статистика кэша и вызовов.
 
+Темы переключаются через меню **⋮ → Light / Dark** в правом верхнем углу. Пункт **System** использует тему системы.
+
+## База данных на демонстрационном ноутбуке
+
+При локальном запуске приложение хранит данные в **`data/app.db`**. Это файл SQLite, он появляется при первом
+запуске сервера. Схема таблиц описана в `backend/db/models.py`. В Docker используется PostgreSQL с базой
+`descriptions` и томом `pg_data`.
+
+Чтобы показать данные на защите, откройте папку проекта в VS Code и выполните команды во встроенном PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/show_database.py
+.\.venv\Scripts\python.exe scripts/show_database.py users
+.\.venv\Scripts\python.exe scripts/show_database.py generation_requests
+.\.venv\Scripts\python.exe scripts/show_database.py reasoning_logs
+.\.venv\Scripts\python.exe scripts/show_database.py knowledge_base
+```
+
+Первая команда показывает список таблиц. После генерации найдите один и тот же `request_id` в
+`generation_requests` и `reasoning_logs`, чтобы связать описание товара с шагами агентов. Скрипт читает базу и
+выводит только выбранные столбцы. Файл с локальными аккаунтами и запросами исключён из Git.
+
+Если перед демонстрацией нужно заново запустить сайт на Windows, убедитесь, что Ollama запущена и модель
+`qwen2.5:1.5b` уже скачана. Из папки проекта откройте два терминала PowerShell. В первом запустите сервер:
+
+```powershell
+$env:NO_PROXY = 'localhost,127.0.0.1'
+$env:HOST = '127.0.0.1'
+$env:PORT = '8015'
+$env:OLLAMA_URL = 'http://127.0.0.1:11434'
+$env:OLLAMA_MODEL = 'qwen2.5:1.5b'
+$env:LLM_DEFAULT_PROVIDER = 'ollama'
+$env:LLM_FALLBACK_ORDER = '["ollama","mock"]'
+$env:EMBEDDING_BACKEND = 'hashing'
+.\.venv\Scripts\python.exe run.py
+```
+
+Во втором запустите интерфейс и откройте [генератор](http://127.0.0.1:8515/):
+
+```powershell
+$env:NO_PROXY = 'localhost,127.0.0.1'
+$env:API_URL = 'http://127.0.0.1:8015/api/v1'
+.\.venv\Scripts\python.exe -m streamlit run frontend/app.py --server.address 127.0.0.1 --server.port 8515
+```
+
 ## Структура проекта
 
 ```

@@ -12,7 +12,7 @@ from frontend.utils.layout import page_heading  # noqa: E402
 from frontend.utils.session import client, require_login  # noqa: E402
 
 user = require_login()
-page_heading("Мониторинг", "Проверьте доступность сервисов, состояние кэша и статистику генераций.")
+page_heading("Мониторинг", "Проверьте доступность сервисов, состояние кэша и статистику генераций.", "monitor_heart")
 
 try:
     health = client().health()
@@ -20,17 +20,23 @@ except APIError as exc:
     st.error(str(exc))
     st.stop()
 
-st.subheader(f"Статус: {'🟢 ok' if health['status'] == 'ok' else '🟡 degraded'}")
 services = health["services"]
-cols = st.columns(4)
-cols[0].metric("База данных", "✅" if services["database"] else "❌")
-cols[1].metric("Векторный индекс", "✅" if services["vector_index"] else "❌")
-cols[2].metric("База знаний", "✅" if services["knowledge_loaded"] else "❌")
-if "redis" in services:
-    cols[3].metric("Redis", "✅" if services["redis"] else "❌")
-st.markdown("**LLM-провайдеры:** " + " · ".join(f"{p} {'✅' if ok else '—'}" for p, ok in services["llm"].items()))
+with st.container(border=True):
+    st.subheader("Состояние сервисов")
+    if health["status"] == "ok":
+        st.success("Основные сервисы доступны.")
+    else:
+        st.warning("Часть сервисов недоступна.")
+    checks = {"База данных": "database", "Векторный индекс": "vector_index", "База знаний": "knowledge_loaded"}
+    if "redis" in services:
+        checks["Redis"] = "redis"
+    for col, (label, key) in zip(st.columns(len(checks)), checks.items(), strict=True):
+        col.metric(label, "В норме" if services[key] else "Сбой")
+    available = [name for name, ready in services["llm"].items() if ready]
+    st.caption("Доступные провайдеры моделей · " + (", ".join(available) or "нет"))
 
 stats = client().stats()
+st.subheader("Кэш и поиск")
 c1, c2, c3 = st.columns(3)
 c1.metric("Записей в кэше", stats["cache"]["entries"])
 c2.metric("Попаданий в кэш", stats["cache"]["total_hits"])

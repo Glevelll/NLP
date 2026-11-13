@@ -2,21 +2,39 @@
 toolbarMode = "viewer"
 
 [theme]
-base = "light"
-primaryColor = "#24664D"
-backgroundColor = "#F6F7F3"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#192C25"
-borderColor = "#DCE4DB"
 showWidgetBorder = true
 baseRadius = "medium"
 buttonRadius = "medium"
 font = "sans serif"
-chartCategoricalColors = ["#287759", "#B76A40", "#568097", "#897AB3", "#917031", "#4B8C8C"]
 
-[theme.sidebar]
-backgroundColor = "#132C24"
-secondaryBackgroundColor = "#214136"
-textColor = "#EEF5EF"
+[theme.light]
+primaryColor = "#226344"
+backgroundColor = "#F5F7F2"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#172D23"
+borderColor = "#D5E0D5"
+dataframeHeaderBackgroundColor = "#EBF2E9"
+chartCategoricalColors = ["#287759", "#B76A40", "#42748C", "#7967A2", "#84631F", "#3F7979"]
+
+[theme.light.sidebar]
+backgroundColor = "#152F25"
+secondaryBackgroundColor = "#234436"
+textColor = "#EEF6EF"
 primaryColor = "#A5E2B6"
-borderColor = "#395549"
+borderColor = "#365647"
+
+[theme.dark]
+primaryColor = "#A3E4B4"
+backgroundColor = "#101A15"
+secondaryBackgroundColor = "#1D2C23"
+textColor = "#EAF3EB"
+borderColor = "#375043"
+dataframeHeaderBackgroundColor = "#25372C"
+chartCategoricalColors = ["#9ADEAC", "#F1A47C", "#8AC9E7", "#C7B5F2", "#E1C674", "#7DD4CB"]
+
+[theme.dark.sidebar]
+backgroundColor = "#0D1913"
+secondaryBackgroundColor = "#20352A"
+textColor = "#EEF6EF"
+primaryColor = "#A5E2B6"
+borderColor = "#30483B"

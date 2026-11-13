@@ -16,7 +16,7 @@ from frontend.utils.layout import page_heading  # noqa: E402
 from frontend.utils.session import client, require_login  # noqa: E402
 
 require_login()
-page_heading("Оценка качества", "Сравните модели и режимы генерации на выборках из 20, 50 или 100 товаров.")
+page_heading("Оценка качества", "Сравните модели и режимы генерации на выборках из 20, 50 или 100 товаров.", "bar_chart")
 
 try:
     prov = client().providers()
@@ -66,7 +66,9 @@ sel_n = c1.selectbox("Размер выборки", sorted(df["n"].unique()), in
 metric = c2.selectbox("Метрика", [m for m in METRICS if m in df.columns])
 latest = df[df["n"] == sel_n].sort_values("created_at").groupby(["model", "mode"], as_index=False).last()
 cols = ["model", "mode", "n", "time_s"] + [m for m in METRICS if m in latest.columns]
-st.dataframe(latest[cols].style.highlight_max(subset=[m for m in METRICS if m in latest.columns], color="#d4f4dd"),
+st.dataframe(latest[cols].style.highlight_max(
+    subset=[m for m in METRICS if m in latest.columns], props="background-color:#316349;color:#fff;font-weight:bold"
+),
              use_container_width=True)
 
 latest["system"] = latest["model"] + " " + latest["mode"]

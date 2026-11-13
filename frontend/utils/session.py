@@ -40,8 +40,9 @@ def login_form() -> None:
         if st.form_submit_button("Войти", type="primary"):
             try:
                 token = APIClient().login(username, password)
+                user = APIClient(token["access_token"]).me()
                 st.session_state["token"] = token["access_token"]
-                st.session_state["user"] = APIClient(token["access_token"]).me()
+                st.session_state["user"] = user
                 st.rerun()
             except APIError as exc:
                 _show_auth_error(exc, {"username": username_error, "password": password_error})
@@ -63,7 +64,10 @@ def login_form() -> None:
 def sidebar_user() -> None:
     user = st.session_state.get("user")
     if user:
-        st.sidebar.markdown(f"**{user['username']}** · роль `{user['role']}`")
+        roles = {"user": "Пользователь", "editor": "Редактор", "admin": "Администратор"}
+        st.sidebar.divider()
+        st.sidebar.text(user["username"])
+        st.sidebar.caption(roles[user["role"]])
         if st.sidebar.button("Выйти"):
             st.session_state.clear()
             st.rerun()

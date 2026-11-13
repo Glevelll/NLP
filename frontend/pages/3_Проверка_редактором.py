@@ -7,12 +7,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import streamlit as st  # noqa: E402
 
 from frontend.utils.api_client import APIError  # noqa: E402
-from frontend.utils.session import client, require_login, sidebar_user  # noqa: E402
+from frontend.utils.layout import page_heading  # noqa: E402
+from frontend.utils.session import client, require_login  # noqa: E402
 
-st.set_page_config(page_title="Проверка редактором", page_icon="🧑‍💼", layout="wide")
-sidebar_user()
 require_login("editor")
-st.title("🧑‍💼 Human-in-the-Loop")
+page_heading("Проверка редактором", "Исправьте, подтвердите или отклоните описание из очереди.")
 st.caption("Сюда попадают описания с низкой оценкой Critic, непрошедшие валидацию и с плохими отзывами. "
            "Подтверждённые (и исправленные) описания добавляются в базу знаний и сразу участвуют в RAG.")
 

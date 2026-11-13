@@ -1,0 +1,193 @@
+[data-testid="stAppViewContainer"] {
+    background: var(--st-background-color);
+}
+
+[data-testid="stMainBlockContainer"] {
+    max-width: 1440px;
+    padding: 3.75rem clamp(1.5rem, 4vw, 4.5rem) 3rem;
+}
+
+[data-testid="stHeader"] {
+    background: transparent;
+}
+
+[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+    border-right: 1px solid #294639;
+}
+
+[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+    padding-top: 2.2rem;
+}
+
+.studio-brand {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .2rem 0 1.25rem;
+    color: #f1f8f0;
+    font-size: 1.15rem;
+    font-weight: 750;
+    line-height: 1.15;
+}
+
+.studio-brand small {
+    display: block;
+    margin-top: .3rem;
+    color: #b4c9bc;
+    font-size: .77rem;
+    font-weight: 400;
+}
+
+.studio-mark {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border-radius: .75rem;
+    background: #bcebc7;
+    color: #19392c;
+    font-size: 1.25rem;
+}
+
+[data-testid="stSidebar"] [data-testid="stPageLink"] a {
+    min-height: 2.55rem;
+    padding-inline: .65rem;
+    border-radius: .6rem;
+}
+
+[data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] {
+    background: #2c4d3e;
+    color: #e4f7e5;
+    font-weight: 700;
+}
+
+.st-key-page-heading {
+    margin-bottom: .9rem;
+}
+
+.st-key-page-heading h1,
+.st-key-sign-in h1 {
+    padding-top: 0;
+    font-size: clamp(2rem, 4vw, 3.1rem);
+    letter-spacing: -.045em;
+    line-height: 1.1;
+}
+
+.st-key-page-heading p,
+.st-key-sign-in .auth-intro {
+    color: #4a6155;
+    font-size: 1.03rem;
+}
+
+.st-key-sign-in {
+    max-width: 29rem;
+    margin-inline: auto;
+}
+
+.st-key-sign-in .studio-brand {
+    color: #192c25;
+    padding-bottom: 0;
+}
+
+.st-key-sign-in .auth-intro {
+    margin: 0 0 .75rem;
+}
+
+.st-key-auth-cover [data-testid="stImage"] img {
+    display: block;
+    width: 100%;
+    max-height: min(680px, calc(100vh - 7rem));
+    min-height: 480px;
+    object-fit: cover;
+    border-radius: 1.55rem;
+}
+
+[data-testid="stForm"],
+[data-testid="stExpander"] details,
+[data-testid="stMetric"] {
+    background: #fff;
+    border-radius: .85rem;
+}
+
+[data-testid="stMetric"] {
+    border: 1px solid #dce4db;
+    padding: .85rem 1rem;
+}
+
+[data-testid="stMetricValue"] {
+    font-size: clamp(1.25rem, 2.3vw, 1.75rem);
+    font-weight: 680;
+}
+
+.st-key-product-form [data-testid="stForm"],
+.st-key-sign-in [data-testid="stForm"] {
+    padding: 1.2rem;
+}
+
+.st-key-product-form [data-testid="stExpander"] details {
+    background: #f6f7f3;
+}
+
+.st-key-description-panel {
+    min-width: 0;
+}
+
+.description-copy {
+    max-height: 22rem;
+    overflow: auto;
+    padding: 1rem 1.1rem;
+    border: 1px solid #dce4db;
+    border-radius: .7rem;
+    background: #fff;
+    color: #192c25;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.description-empty {
+    padding: 2.6rem 1.5rem;
+    border: 1px dashed #b7c9bc;
+    border-radius: 1rem;
+    background: #edf3ed;
+    color: #4a6155;
+    text-align: center;
+}
+
+.description-empty strong {
+    display: block;
+    margin-bottom: .45rem;
+    color: #233f32;
+    font-size: 1.1rem;
+}
+
+[data-testid="stDataFrame"] {
+    border-radius: .75rem;
+    overflow: hidden;
+}
+
+@media (max-width: 900px) {
+    [data-testid="stHorizontalBlock"]:has(.st-key-product-form):has(.st-key-description-panel) {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    [data-testid="stHorizontalBlock"]:has(.st-key-product-form):has(.st-key-description-panel) > [data-testid="stColumn"] {
+        width: 100%;
+        flex: 1 1 auto;
+    }
+}
+
+@media (max-width: 740px) {
+    [data-testid="stMainBlockContainer"] {
+        padding: 3.6rem 1rem 2rem;
+    }
+
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:has(.st-key-auth-cover) {
+        display: none;
+    }
+
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:has(.st-key-sign-in) {
+        flex: 1 1 100%;
+    }
+}

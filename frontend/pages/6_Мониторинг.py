@@ -8,12 +8,11 @@ import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
 
 from frontend.utils.api_client import APIError  # noqa: E402
-from frontend.utils.session import client, require_login, sidebar_user  # noqa: E402
+from frontend.utils.layout import page_heading  # noqa: E402
+from frontend.utils.session import client, require_login  # noqa: E402
 
-st.set_page_config(page_title="Мониторинг", page_icon="🩺", layout="wide")
-sidebar_user()
 user = require_login()
-st.title("🩺 Мониторинг")
+page_heading("Мониторинг", "Проверьте доступность сервисов, состояние кэша и статистику генераций.")
 
 try:
     health = client().health()

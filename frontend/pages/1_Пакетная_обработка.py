@@ -10,12 +10,11 @@ import streamlit as st  # noqa: E402
 
 from frontend.utils.api_client import APIError  # noqa: E402
 from frontend.utils.constants import MODES  # noqa: E402
-from frontend.utils.session import client, require_login, sidebar_user  # noqa: E402
+from frontend.utils.layout import page_heading  # noqa: E402
+from frontend.utils.session import client, require_login  # noqa: E402
 
-st.set_page_config(page_title="Пакетная обработка", page_icon="📦", layout="wide")
-sidebar_user()
 require_login()
-st.title("📦 Пакетная обработка")
+page_heading("Пакетная обработка", "Загрузите CSV, чтобы подготовить описания для нескольких товаров сразу.")
 st.markdown("CSV с колонками `name, category, features, price, audience, brand, style, platform`; "
             "особенности разделяются символом `;`.")
 sample = pd.DataFrame([{"name": "Термокружка Thermo Go 450 мл", "category": "Дом и кухня",

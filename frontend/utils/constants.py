@@ -7,10 +7,10 @@ CATEGORIES = [
 PLATFORMS = {"ozon": "Ozon", "wildberries": "Wildberries", "site": "Собственный сайт"}
 STYLES = ["нейтральный", "эмоциональный", "премиальный", "молодёжный", "экспертный"]
 MODES = {
-    "+agents": "Мультиагентный (RAG + справочник + Validator/Critic/Editor)",
-    "+rag": "LLM + гибридный поиск + справочник",
-    "+dict": "LLM + справочник",
-    "baseline": "Только LLM",
+    "+agents": "Поиск, справочник и проверка текста",
+    "+rag": "Гибридный поиск и справочник",
+    "+dict": "Модель со справочником",
+    "baseline": "Только модель",
     "+ensemble": "Ансамбль моделей",
 }
 PROVIDERS = ["auto", "ollama", "openai", "anthropic", "openrouter", "groq", "hf", "mock"]

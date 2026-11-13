@@ -9,12 +9,11 @@ import streamlit as st  # noqa: E402
 
 from frontend.utils.api_client import APIError  # noqa: E402
 from frontend.utils.constants import CATEGORIES, PLATFORMS, STYLES  # noqa: E402
-from frontend.utils.session import client, require_login, sidebar_user  # noqa: E402
+from frontend.utils.layout import page_heading  # noqa: E402
+from frontend.utils.session import client, require_login  # noqa: E402
 
-st.set_page_config(page_title="Справочник и база знаний", page_icon="📚", layout="wide")
-sidebar_user()
 user = require_login("editor")
-st.title("📚 Справочник и база знаний")
+page_heading("Справочник и база знаний", "Управляйте примерами описаний и правилами, которые использует генератор.")
 
 try:
     stats = client().admin_stats()

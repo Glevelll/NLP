@@ -8,12 +8,11 @@ import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402
 import streamlit as st  # noqa: E402
 
-from frontend.utils.session import client, require_login, sidebar_user  # noqa: E402
+from frontend.utils.layout import page_heading  # noqa: E402
+from frontend.utils.session import client, require_login  # noqa: E402
 
-st.set_page_config(page_title="Логи рассуждений", page_icon="🧠", layout="wide")
-sidebar_user()
 require_login()
-st.title("🧠 Логи рассуждений и трассировка LLM")
+page_heading("Журнал генерации", "Выберите запрос, чтобы увидеть шаги проверки и вызовы модели.")
 
 reqs = client().requests(100)
 if not reqs:
@@ -22,7 +21,15 @@ if not reqs:
 
 labels = {r["request_id"]: f"{r['created_at'][:19]} · {r['product_name']} · {r['mode']} · "
                            f"score {r['critic_score']}" for r in reqs}
-rid = st.selectbox("Запрос", list(labels), format_func=labels.get)
+request_ids = list(labels)
+selected_id = st.session_state.pop("journal_request", None)
+if selected_id in labels:
+    st.session_state["selected_journal_request"] = selected_id
+elif selected_id is not None:
+    st.info("Этот запрос отсутствует в списке последних генераций.")
+if st.session_state.get("selected_journal_request") not in labels:
+    st.session_state["selected_journal_request"] = request_ids[0]
+rid = st.selectbox("Запрос", request_ids, format_func=labels.get, key="selected_journal_request")
 req = client().request(rid)
 st.markdown(f"**Режим:** {req['mode']} · **модель:** {req['provider']}:{req['model_name']} · "
             f"**итераций:** {req['iterations']} · **время:** {req['elapsed_ms']:.0f} мс")

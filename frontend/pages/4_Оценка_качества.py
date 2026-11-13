@@ -12,12 +12,11 @@ import streamlit as st  # noqa: E402
 
 from frontend.utils.api_client import APIError  # noqa: E402
 from frontend.utils.constants import METRICS, MODES  # noqa: E402
-from frontend.utils.session import client, require_login, sidebar_user  # noqa: E402
+from frontend.utils.layout import page_heading  # noqa: E402
+from frontend.utils.session import client, require_login  # noqa: E402
 
-st.set_page_config(page_title="Оценка качества", page_icon="📊", layout="wide")
-sidebar_user()
 require_login()
-st.title("📊 Оценка качества и сравнение моделей")
+page_heading("Оценка качества", "Сравните модели и режимы генерации на выборках из 20, 50 или 100 товаров.")
 
 try:
     prov = client().providers()

@@ -23,6 +23,7 @@ RUN if [ "$INSTALL_ML" = "true" ]; then poetry install --no-root --without dev -
 
 COPY backend ./backend
 COPY frontend ./frontend
+COPY .streamlit ./.streamlit
 COPY scripts ./scripts
 COPY data/import ./data/import
 COPY run.py ./
